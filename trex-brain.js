@@ -8,10 +8,14 @@ class TrexBrain {
 		this.temporal_window = 2;
 
 		this.tdtrainer_options = {
-			learning_rate: 0.05,
-			momentum: 0.0,
+			//learning_rate: 0.05,
+			learning_rate: 0.01,
+			method: 'adam',
 			batch_size: 64,
-			l2_decay: 0.01
+			l2_decay: 0.001,
+			eps: 1e-8,
+			beta1: 0.9,
+			beta2: 0.99
 		};
 
 		this.opt = {
@@ -39,16 +43,27 @@ class TrexBrain {
 		return this.num_inputs * this.temporal_window + this.num_actions * this.temporal_window + this.num_inputs;
 	}
 
-	calcReward(data) {
-		//TODO
+	calcReward(experience) {
+		let reward = experience.rewardData.crashed ? -0.5 : 0.54;
+
+		//tRex loves doing same thing
+		if(experience.rewardData.before === experience.action0)
+			reward += 0.01;
+
+		//tRex loves walking straight.
+		if(experience.action0 === 'walk')
+			reward += 0.01;
+
+		if(!experience.rewardData.crashed) reward += experience.rewardData.score;
+
 	}
 
 	backward(data, instanceId) {
 		await this.brain.backward(calcReward(data), instanceId, data);
 	}
 
-	forward(instanceId) {
-		return this.brain.forward(this.actions, instanceId);
+	forward(inputArray) {
+		return this.actions[this.brain.forward(inputArray, instanceId)];
 	}
 
 	createInstance() {
@@ -58,7 +73,7 @@ class TrexBrain {
 	visualize() {
 		return this.brain.visualize();
 	}
-	
+
 	exportValue() {
 		try{
 			fs.writeFileSync('trex-brain.dat', JSON.stringify(

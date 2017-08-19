@@ -15,9 +15,26 @@ actions['duck'] = () => {
 	}else Runner.instance_.tRex.setDuck(true);
 };
 
-setInterval(() => {
+let before = 'walk';
+let next = postSync('api')(`id=${id}`);
+
+const fetchSync = (method) => (url) => (data = null) => {
 	let xhr = new XMLHttpRequest;
-	xhr.open(location.href + "/api");
+	xhr.open(method, `${location.href}/${url}`, false);
+	xhr.send(data);
+
+	return xhr.responseText;
+};
+
+const getSync = fetchSync('GET');
+const postSync = fetchSync('POST');
+
+const id = getSync('create')();
+
+const save = getSync('save');
+const load = getSync('load');
+
+const learn = () => {
 	if(!Runner.instance_.playing && !Runner.instance_.crashed) return;
 	//if(Runner.instance_.horizon.obstacles.length <= 0) return;
 
@@ -35,33 +52,27 @@ setInterval(() => {
 	const action = brain.forward(input_array);
 	actions[action]();
 
-	//const reward = Runner.instance_.crashed ? 0 : 0.8;
-	//brain.backward(reward);
+	const lastObstacle = Runner.instance_.horizon.obstacles[0];
+	let lastObstacleData = '{}';
+	if(lastObstacle) lastObstacleData = {
+		x: lastObstacle.xPos,
+		y: lastObstacle.yPos,
+		w: lastObstacle.typeConfig.width,
+		h: lastObstacle.typeConfig.height
+	};
 
-	/*
-	//const s1 = parseInt(Runner.instance_.distanceMeter.digits.join(''), 10);
-	setTimeout(() => {
-		//const s2 = parseInt(Runner.instance_.distanceMeter.digits.join(''), 10);
-		//const deltaS = s2 - s1;
+	const rewardData = JSON.stringify({
+		score: parseInt(Runner.instance_.distanceMeter.digits.join(''), 10),
+		crashed: Runner.instance_.crashed,
+		before: before,
+		speed: Runner.instance_.currentSpeed,
+		lastObstacle: lastObstacleData
+	});
 
-		//const reward = Runner.instance_.crashed ? -10000 : deltaS;
+	before = action;
+	next = postSync('api')(`id=${id}&data=${encodeURIComponent(rewardData)}`);
 
-	}, 500);*/
+	setTimeout(learn, 20);
+};
 
-	//if(Runner.instance_.horizon.obstacles.length <= 0) return;
-
-
-	//tRex hates being crashed.
-	let reward = Runner.instance_.crashed ? 0 : 0.54;
-	//tRex loves passing the obstacle
-
-	if(
-		!Runner.instance_.crashed &&
-		Runner.instance_.horizon.obstacles.length > 0 &&
-		Runner.instance_.horizon.obstacles[0].xPos - Runner.instance_.tRex.xPos <= 0) reward += 0.44;
-
-	let index = brain.experience.length - 1;
-
-	//tRex
-}, 25);
-
+learn();

@@ -5,6 +5,10 @@ class Experience{
 		this.reward0 = reward0;
 		this.state1 = state1;
 	}
+
+	exportData() {
+		return this;
+	}
 }
 
 module.exports = Experience;

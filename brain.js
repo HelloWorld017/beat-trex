@@ -91,7 +91,7 @@ class Brain{
 		if(typeof opt.tdtrainer_options !== 'undefined') {
 			tdtrainer_options = opt.tdtrainer_options; // allow user to overwrite this
 		}
-		this.tdtrainer = new convnetjs.SGDTrainer(this.value_net, tdtrainer_options);
+		this.tdtrainer = new convnetjs.Trainer(this.value_net, tdtrainer_options);
 
 		// experience replay
 		this.experience = [];
@@ -220,11 +220,21 @@ class Brain{
 		return action;
 	}
 
-	async backward(reward, instanceId, wholeData) {
+	async backward(wholeData, instanceId, calc) {
+		const e = new Experience();
+		e.state0 = this.net_window[instanceId][n - 2];
+		e.action0 = this.action_window[instanceId][n - 2];
+		e.state1 = this.net_window[instanceId][n - 1];
+		e.rewardData = wholeData;
+
+		const reward = calc(e);
+
 		this.latest_reward = reward;
 		this.average_reward_window.add(reward);
 		this.reward_window[instanceId].shift();
 		this.reward_window[instanceId].push(reward);
+
+		e.reward0 = this.reward_window[instanceId][n - 2];
 
 		if (!this.learning) {
 			return;
@@ -305,8 +315,8 @@ class Brain{
 
 			for(let v of arrays) {
 				const e = new Experience();
-				[e.state0, e.action0, e.state1] = [v.state0, v.action0, v.state1];
-				e.reward1 = rewardFunction(v.wholeData);
+				[e.state0, e.action0, e.state1, e.rewardData] = [v.state0, v.action0, v.state1, v.rewardData];
+				e.reward1 = rewardFunction(e);
 
 				this.addToExperiences(e);
 				this.experienceReplay();
