@@ -1,4 +1,5 @@
 const router = require('koa-router')();
+const send = require('koa-send');
 
 router.post('/backward', async (ctx, next) => {
 	const body = ctx.request.body;
@@ -28,6 +29,10 @@ router.get('/vis', async ctx => {
 
 router.get('/create', async ctx => {
 	ctx.body = global.tRex.createInstance();
+});
+
+router.get('/', async ctx => {
+	await send(ctx, '/index.html');
 });
 
 module.exports = router;

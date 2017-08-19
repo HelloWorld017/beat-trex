@@ -1,4 +1,5 @@
 const Brain = require('./brain');
+const fs = require('fs');
 
 class TrexBrain {
 	constructor() {
@@ -56,5 +57,25 @@ class TrexBrain {
 
 	visualize() {
 		return this.brain.visualize();
+	}
+	
+	exportValue() {
+		try{
+			fs.writeFileSync('trex-brain.dat', JSON.stringify(
+				this.brain.value_net.toJSON()
+			));
+		}catch(e) {
+			return e;
+		}
+	}
+
+	importValue() {
+		try{
+			this.brain.value_net.fromJSON(
+				JSON.parse(fs.readFileSync('trex-brain.dat'))
+			);
+		}catch(e) {
+			return e;
+		}
 	}
 }
