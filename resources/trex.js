@@ -775,6 +775,8 @@ Runner.prototype = {
    * Game over state.
    */
   gameOver: function() {
+    if(window.onGameOver) window.onGameOver();
+
     this.playSound(this.soundFx.HIT);
     vibrate(200);
 

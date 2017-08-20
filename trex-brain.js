@@ -3,9 +3,20 @@ const fs = require('fs');
 
 class TrexBrain {
 	constructor() {
-		this.num_inputs = 0; //TODO
+		this.num_inputs = 600 * 150 * 3;
 		this.actions = ['walk', 'jump', 'duck'];
-		this.temporal_window = 2;
+		this.temporal_window = 0; //Previous input feeded by forward function
+
+		this.layer_defs = [
+			{type: 'input', out_sx: 600, out_sy: 150, out_depth: 3},
+			{type: 'conv', }
+			{type: 'conv', sx: 5, filters: 10, stride: 1, pad: 1, activation: 'relu'}
+			{type: 'pool', sx: 3, stride: 3},
+			{type: 'conv', sx: 3, filters: 10, stride: 1, activation: 'relu'},
+			{type: 'fc', num_neurons: 20, activation: 'relu'},
+			{type: 'fc', num_neurons: 8, activation: 'relu'},
+			{type: 'softmax', num_neurons: this.num_actions}
+		];
 
 		this.tdtrainer_options = {
 			//learning_rate: 0.05,
@@ -44,7 +55,7 @@ class TrexBrain {
 	}
 
 	calcReward(experience) {
-		let reward = experience.rewardData.crashed ? -0.5 : 0.54;
+		let reward = experience.rewardData.crashed ? -1 : 0;
 
 		//tRex loves doing same thing
 		if(experience.rewardData.before === experience.action0)
@@ -54,11 +65,12 @@ class TrexBrain {
 		if(experience.action0 === 'walk')
 			reward += 0.01;
 
-		if(!experience.rewardData.crashed) reward += experience.rewardData.score;
+		if(!experience.rewardData.crashed)
+			reward += experience.rewardData.score / 1000 + experience.rewardData.jumped / 20;
 
 	}
 
-	backward(data, instanceId) {
+	async backward(data, instanceId) {
 		await this.brain.backward(calcReward(data), instanceId, data);
 	}
 

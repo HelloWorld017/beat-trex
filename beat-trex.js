@@ -34,23 +34,13 @@ const id = getSync('create')();
 const save = getSync('save');
 const load = getSync('load');
 
+let jumped = 0;
+
 const learn = () => {
 	if(!Runner.instance_.playing && !Runner.instance_.crashed) return;
 	//if(Runner.instance_.horizon.obstacles.length <= 0) return;
 
-	let input_array = [Runner.instance_.tRex.yPos, Runner.instance_.currentSpeed];
-	Runner.instance_.horizon.obstacles.slice(0, seeing_obstacles).forEach((v) => {
-		input_array.push(v.xPos, v.yPos, v.typeConfig.width, v.typeConfig.height);
-	});
-
-	while(input_array.length < num_inputs){
-		input_array.push(-10, 100, 0, 0);
-	}
-
-	if(input_array.length !== num_inputs) alert("Error! input array size!");
-
-	const action = brain.forward(input_array);
-	actions[action]();
+	actions[next]();
 
 	const lastObstacle = Runner.instance_.horizon.obstacles[0];
 	let lastObstacleData = '{}';
@@ -61,18 +51,31 @@ const learn = () => {
 		h: lastObstacle.typeConfig.height
 	};
 
+	Runner.instance_.horizon.obstacles.length.forEach((v) => {
+		if(v.calculated === undefined){
+			jumped++;
+			v.calculated = true;
+		}
+	});
+
 	const rewardData = JSON.stringify({
 		score: parseInt(Runner.instance_.distanceMeter.digits.join(''), 10),
 		crashed: Runner.instance_.crashed,
 		before: before,
 		speed: Runner.instance_.currentSpeed,
-		lastObstacle: lastObstacleData
+		lastObstacle: lastObstacleData,
+		jumpedObstacles: jumped
 	});
 
 	before = action;
+
+	const canvas = Runner.instance_.canvas;
+	let input = canvas.getImageData(0, 0, canvas.width, canvas.height);
+
 	next = postSync('api')(`id=${id}&data=${encodeURIComponent(rewardData)}`);
 
 	setTimeout(learn, 20);
 };
 
+window.onGameOver = () => jumped = 0;
 learn();
