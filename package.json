@@ -1,0 +1,39 @@
+{
+  "name": "beat-trex",
+  "version": "0.1.0",
+  "description": "Beat tRex game with deep-q-learning.",
+  "main": "src/app.js",
+  "dependencies": {
+    "chalk": "^2.1.0",
+    "koa": "^2.3.0",
+    "koa-bodyparser": "^4.2.0",
+    "koa-router": "^7.2.1",
+    "koa-send": "^4.1.0",
+    "koa-static": "^4.0.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HelloWorld017/beat-trex.git"
+  },
+  "keywords": [
+    "deep",
+    "dqn",
+    "convnet",
+    "neural",
+    "network",
+    "reinforcement",
+    "learning",
+    "machine"
+  ],
+  "author": "Khinenw",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/HelloWorld017/beat-trex/issues"
+  },
+  "homepage": "https://github.com/HelloWorld017/beat-trex#readme"
+}
