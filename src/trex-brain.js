@@ -78,7 +78,7 @@ class TrexBrain {
 		});
 	}
 
-	forward(inputArray) {
+	forward(inputArray, instanceId) {
 		return this.actions[this.brain.forward(inputArray, instanceId)];
 	}
 

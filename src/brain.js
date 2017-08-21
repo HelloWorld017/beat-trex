@@ -107,6 +107,7 @@ class Brain{
 		this.average_loss_window = new cnnutil.Window(1000, 10);
 		this.learning = true;
 		this.instances = 0;
+		this.activeInstances = 0;
 	}
 
 	random_action(){
@@ -170,12 +171,22 @@ class Brain{
 	}
 
 	createInstance() {
-		const instanceId = this.instances;
+		let instanceId = this.instances;
+
+		if(this.activeInstances > 128) {
+			console.error("Cannot allocate, deleting first one!");
+			instanceId = instanceId % 128;
+			this.activeInstances--;
+		}
+
 		this.forward_passes[instanceId] = 0;
 		this.net_window[instanceId] = new Array(this.window_size);
 		this.state_window[instanceId] = new Array(this.window_size);
 		this.action_window[instanceId] = new Array(this.window_size);
 		this.reward_window[instanceId] = new Array(this.window_size);
+
+		this.instances++;
+		this.activeInstances++;
 
 		return instanceId;
 	}

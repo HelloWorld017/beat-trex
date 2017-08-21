@@ -60,9 +60,7 @@ router
 		ctx.body = JSON.stringify({status: ":)", ok: true});
 	});
 
-app.use(bodyParser({
-	enableTypes: 'json'
-}));
+app.use(bodyParser());
 app.use(static(path.join(__dirname, '..', 'app')));
 app.use(router.routes());
 app.use(router.allowedMethods());
