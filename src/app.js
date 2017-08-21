@@ -60,10 +60,12 @@ router
 		ctx.body = JSON.stringify({status: ":)", ok: true});
 	});
 
+const port =  process.env.PORT ? parseInt(process.env.PORT) : 80;
+
 app.use(bodyParser());
 app.use(static(path.join(__dirname, '..', 'app')));
 app.use(router.routes());
 app.use(router.allowedMethods());
-app.listen(80);
+app.listen(port);
 
-console.log(chalk`{cyan Listening...}`);
+console.log(chalk`{cyan Listening} on {bgCyan Port ${port}}...`);
