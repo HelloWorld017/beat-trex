@@ -7,9 +7,9 @@
     "chalk": "^2.1.0",
     "koa": "^2.3.0",
     "koa-bodyparser": "^4.2.0",
-    "koa-router": "^7.2.1",
     "koa-send": "^4.1.0",
-    "koa-static": "^4.0.1"
+    "koa-static": "^4.0.1",
+    "socket.io": "^2.0.3"
   },
   "devDependencies": {},
   "scripts": {

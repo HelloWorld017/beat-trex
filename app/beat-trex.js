@@ -15,28 +15,15 @@ actions['duck'] = () => {
 	}else Runner.instance_.tRex.setDuck(true);
 };
 
-
-const fetchSync = (method) => (url) => (data = null, json = false) => {
-	let xhr = new XMLHttpRequest;
-	xhr.open(method, `${location.href}${url}`, false);
-	if(json) xhr.setRequestHeader('Content-Type', 'application/json')
-	xhr.send(data);
-
-	return xhr.responseText;
-};
-
-const getSync = fetchSync('GET');
-const postSync = fetchSync('POST');
-
-const id = getSync('create')();
+const socket = io();
+let id;
 let jumped = 0;
 let before = 'walk';
-let next = undefined;
 
 window.onGameOver = () => jumped = 0;
 
-const save = getSync('save');
-const load = getSync('load');
+const save = () => socket.emit('save');
+const load = () => socket.emit('load');
 const luminosity = (r, g, b) =>
 	0.2126 * Math.pow(r / 255, 2.2) + 0.7152 * Math.pow(g / 255, 2.2) + 0.0722 * Math.pow(b / 255, 2.2);
 const blend = (channel, alpha) =>
@@ -68,22 +55,22 @@ const getInput = () => {
 	return input;
 };
 
-const learn = () => {
+const learn = async (next) => {
 	if(!Runner.instance_.playing && !Runner.instance_.crashed){
-		setTimeout(learn, 20);
+		//setTimeout(learn, 20);
+		Runner.instance_.startGame();
 		return;
 	}
-	//if(Runner.instance_.horizon.obstacles.length <= 0) return;
 
-	if(!next) next = postSync('api')(JSON.stringify({
-		id,
-		forward: getInput()
-	}), true);
+	if(!next) console.log(next);
+
+	//Runner.instance_.update(20);
+	//if(Runner.instance_.horizon.obstacles.length <= 0) return;
 
 	actions[next]();
 
 	const lastObstacle = Runner.instance_.horizon.obstacles[0];
-	let lastObstacleData = '{}';
+	let lastObstacleData = {};
 	if(lastObstacle) lastObstacleData = {
 		x: lastObstacle.xPos,
 		y: lastObstacle.yPos,
@@ -91,8 +78,8 @@ const learn = () => {
 		h: lastObstacle.typeConfig.height
 	};
 
-	Runner.instance_.horizon.obstacles.length.forEach((v) => {
-		if(v.calculated === undefined){
+	Runner.instance_.horizon.obstacles.forEach((v) => {
+		if(v.xPos < Runner.instance_.tRex.xPos && v.calculated === undefined) {
 			jumped++;
 			v.calculated = true;
 		}
@@ -107,7 +94,7 @@ const learn = () => {
 		jumpedObstacles: jumped
 	});
 
-	before = action;
+	before = next;
 
 	const input = getInput();
 	const feed = {
@@ -116,9 +103,19 @@ const learn = () => {
 		forward: input
 	};
 
-	next = postSync('api')(JSON.stringify(feed), true);
-
-	setTimeout(learn, 20);
+	socket.emit('api', feed);
 };
 
-learn();
+
+socket.on('instance', instance => {
+	id = instance;
+
+	socket.emit('api', {
+		id,
+		forward: getInput()
+	});
+});
+
+socket.on('api', next => {
+	learn(next);
+});

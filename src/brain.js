@@ -243,7 +243,6 @@ class Brain{
 		e.rewardData = wholeData;
 
 		const reward = calc(e);
-
 		this.latest_reward = reward;
 		this.average_reward_window.add(reward);
 		this.reward_window[instanceId].shift();
@@ -343,8 +342,8 @@ class Brain{
 
 	visualize() {
 		return {
-			'replaySize': this.experience_size,
-			'epsilon': this.eplsilon,
+			'replaySize': this.experience.length,
+			'epsilon': this.epsilon,
 			'age': this.age,
 			'loss': this.average_loss_window.get_average(),
 			'reward': this.average_reward_window.get_average()

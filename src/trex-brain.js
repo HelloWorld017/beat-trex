@@ -1,5 +1,7 @@
 const Brain = require('./brain');
+const chalk = require('chalk');
 const fs = require('fs');
+//const readline = require('readline');
 
 class TrexBrain {
 	constructor() {
@@ -44,6 +46,14 @@ class TrexBrain {
 
 
 		this.brain = new Brain(this.num_inputs, this.num_actions, this.opt);
+
+		if(!fs.existsSync('./trex-log.dat'))
+			fs.writeFileSync('./trex-log.dat',
+				'Time,Age,AverageReward,AverageLoss,HighScore' + '\n' +
+				`${Date.now()},0,-1,-1,0` + '\n'
+			);
+
+		this.highScore = 0;
 	}
 
 	get num_actions() {
@@ -65,20 +75,38 @@ class TrexBrain {
 		if(experience.action0 === 'walk')
 			reward += 0.01;
 
+		console.log(experience.rewardData);
+		console.log(experience.rewardData.jumpedObstacles);
 		if(!experience.rewardData.crashed)
-			reward += experience.rewardData.score / 1000 + experience.rewardData.jumped / 20;
+			reward += experience.rewardData.score / 1000 + experience.rewardData.jumpedObstacles / 20;
 
+		return reward;
 	}
 
 	async backward(data, instanceId) {
-		await this.brain.backward(calcReward(data), instanceId, data);
+		await this.brain.backward(data, instanceId, this.calcReward);
 		const vis = this.visualize();
-		Object.keys(vis).forEach((k) => {
-			console.log(chalk`{bgHex('#0080ff') ${chalk.bgBlue(k)}} : {bgHex('#00c0a0') ${chalk.cyan(vis[k])}}`);
+		const visKeys = Object.keys(vis);
+
+		if(data.score > this.highScore) this.highScore = data.score;
+
+		//readline.moveCursor(process.stdout, 0, visKeys.length);
+		//readline.cursorTo(process.stdout, 0);
+
+		visKeys.forEach((k) => {
+			//readline.clearLine(process.stdout, 0);
+			console.log(chalk`{bgBlue ${k}} : {bgCyan ${vis[k]}}`);
 		});
+
+		if(this.brain.age % 1000 === 0)
+			fs.appendFileSync(
+				'./trex-log.dat',
+				`${Date.now()},${this.brain.age},${vis.reward},${vis.loss},${this.highScore}`
+			);
 	}
 
 	forward(inputArray, instanceId) {
+		console.log(this.brain.forward(inputArray, instanceId));
 		return this.actions[this.brain.forward(inputArray, instanceId)];
 	}
 

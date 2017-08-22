@@ -1,33 +1,44 @@
 const Koa = require('koa');
-const Router = require('koa-router');
 const TrexBrain = require('./trex-brain');
+const SocketIO = require('socket.io');
 
 const bodyParser = require('koa-bodyparser');
 const chalk = require('chalk');
+const http = require('http');
 const path = require('path');
 const send = require('koa-send');
 const static = require('koa-static');
 
 const app = new Koa;
-const router = new Router;
 const trex = new TrexBrain;
 
-router
-	.post('/api', async ctx => {
-		const body = ctx.request.body;
+app.use(bodyParser());
+app.use(static(path.join(__dirname, '..', 'app')));
+
+const port = process.env.PORT ? parseInt(process.env.PORT) : 80;
+
+const server = http.Server(app.callback());
+server.listen(port);
+
+const io = SocketIO(server);
+io.on('connection', socket => {
+	console.log(chalk`{cyan Instance attached!}`);
+
+	socket.emit('instance', trex.createInstance());
+
+	socket.on('api', body => {
 		if(!body.id) {
-			ctx.status = 403;
-			ctx.body = JSON.stringify({
+			socket.emit('api', {
 				status: ':(',
 				ok: false,
 				error: 'No Instance!'
 			});
+
 			return;
 		}
 
 		if(!body.forward) {
-			ctx.status = 403;
-			ctx.body = JSON.stringify({
+			socket.emit('api', {
 				status: ':(',
 				ok: false,
 				error: 'No Input!'
@@ -35,37 +46,29 @@ router
 		}
 
 		const action = trex.forward(body.forward, body.id);
-		ctx.body = action;
 
-		if(!body.data) return;
+		if(body.data)
+			trex.backward(
+				body.data,
+				body.id
+			);
 
-		await trex.backward(
-			body.data,
-			body.id
-		);
-	})
-	.get('/vis', async ctx => {
-		ctx.body = trex.visualize();
-	})
-	.get('/create', async ctx => {
-		ctx.body = trex.createInstance();
-		console.log(chalk`{cyan Instance attached!}`);
-	})
-	.get('/save', async ctx => {
-		trex.exportValue();
-		ctx.body = JSON.stringify({status: ":D", ok: true});
-	})
-	.get('/load', async ctx => {
-		trex.importValue();
-		ctx.body = JSON.stringify({status: ":)", ok: true});
+		socket.emit('api', action);
 	});
 
-const port =  process.env.PORT ? parseInt(process.env.PORT) : 80;
+	socket.on('vis', () => {
+		socket.emit('vis', trex.visualize());
+	});
 
-app.use(bodyParser());
-app.use(static(path.join(__dirname, '..', 'app')));
-app.use(router.routes());
-app.use(router.allowedMethods());
-app.listen(port);
+	socket.on('save', () => {
+		trex.exportValue();
+		socket.emit('save', {status: ":D", ok: true});
+	});
+
+	socket.on('load', () => {
+		trex.importValue();
+		socket.emit('load', {status: ":)", ok: true});
+	});
+});
 
 console.log(chalk`{cyan Listening} on {bgCyan Port ${port}}...`);

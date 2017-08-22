@@ -59,14 +59,12 @@
 
   <button onclick="save()">Save</button>
   <button onclick="load()">Load</button>
-  <canvas id="net_canvas" width="1280" height="200"></canvas>
-  <canvas id="reward_canvas" width="1280" height="390"></canvas>
-  <div id="vis_area"></div>
   <script src="/resources/trex.js"></script>
   <script>
   	new Runner(".interstitial-wrapper");
   </script>
-  <script src="./beat-trex.js"></script>
+  <script src="/resources/socket.io.js"></script>
+  <script src="/beat-trex.js"></script>
   <script>
     Runner.instance_._GAME_START();
   </script>

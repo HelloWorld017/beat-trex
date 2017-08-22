@@ -525,7 +525,7 @@ Runner.prototype = {
   /**
    * Update the game frame and schedules the next one.
    */
-  update: function() {
+  update: function(){//deltaTime) {
     this.updatePending = false;
 
     var now = getTimeStamp();
