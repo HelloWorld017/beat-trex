@@ -85,14 +85,14 @@ const learn = async (next) => {
 		}
 	});
 
-	const rewardData = JSON.stringify({
+	const rewardData = {
 		score: parseInt(Runner.instance_.distanceMeter.digits.join(''), 10),
 		crashed: Runner.instance_.crashed,
 		before: before,
 		speed: Runner.instance_.currentSpeed,
 		lastObstacle: lastObstacleData,
 		jumpedObstacles: jumped
-	});
+	};
 
 	before = next;
 
