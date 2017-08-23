@@ -1,4 +1,5 @@
 const actions = {};
+
 actions['walk'] = () => {
 	Runner.instance_.tRex.setDuck(false);
 };
@@ -15,15 +16,16 @@ actions['duck'] = () => {
 	}else Runner.instance_.tRex.setDuck(true);
 };
 
-const socket = io();
-let id;
+const trex = new TrexBrain;
+
+let id = trex.createInstance();
 let jumped = 0;
 let before = 'walk';
 
 window.onGameOver = () => jumped = 0;
 
-const save = () => socket.emit('save');
-const load = () => socket.emit('load');
+const save = () => trex.export();
+const load = () => trex.import();
 const luminosity = (r, g, b) =>
 	0.2126 * Math.pow(r / 255, 2.2) + 0.7152 * Math.pow(g / 255, 2.2) + 0.0722 * Math.pow(b / 255, 2.2);
 const blend = (channel, alpha) =>
@@ -55,14 +57,15 @@ const getInput = () => {
 	return input;
 };
 
-const learn = async (next) => {
+const learn = () => {
 	if(!Runner.instance_.playing && !Runner.instance_.crashed){
 		//setTimeout(learn, 20);
 		Runner.instance_.startGame();
+		setTimeout(learn, 20);
 		return;
 	}
 
-	if(!next) console.log(next);
+	const next = trex.forward(getInput(), id);
 
 	//Runner.instance_.update(20);
 	//if(Runner.instance_.horizon.obstacles.length <= 0) return;
@@ -85,37 +88,17 @@ const learn = async (next) => {
 		}
 	});
 
-	const rewardData = JSON.stringify({
+	const rewardData = {
 		score: parseInt(Runner.instance_.distanceMeter.digits.join(''), 10),
 		crashed: Runner.instance_.crashed,
 		before: before,
 		speed: Runner.instance_.currentSpeed,
 		lastObstacle: lastObstacleData,
 		jumpedObstacles: jumped
-	});
-
-	before = next;
-
-	const input = getInput();
-	const feed = {
-		id,
-		data: rewardData,
-		forward: input
 	};
 
-	socket.emit('api', feed);
+	before = next;
+	trex.backward(rewardData, id);
+
+	setTimeout(learn, 20);
 };
-
-
-socket.on('instance', instance => {
-	id = instance;
-
-	socket.emit('api', {
-		id,
-		forward: getInput()
-	});
-});
-
-socket.on('api', next => {
-	learn(next);
-});

@@ -3,22 +3,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0,
                                  maximum-scale=1.0, user-scalable=no">
   <title>trex-beat</title>
-  <link rel="stylesheet" href="/resources/trex.css">
+  <link rel="stylesheet" href="resources/trex.css">
 </head>
 <body id="t" i18n-values=".style.fontFamily:fontfamily;.style.fontSize:fontsize" jstcache="0" class="neterror offline" style="font-family: &quot;Segoe UI&quot;, Arial, &quot;Malgun Gothic&quot;, Gulim, sans-serif; font-size: 75%;">
   <div id="main-frame-error" class="interstitial-wrapper" jstcache="0">
     <div id="main-content" jstcache="0">
       <div class="icon icon-offline" jseval="updateIconClass(this.classList, iconClass)" jstcache="1" style="visibility: hidden;"></div>
       <div id="main-message" jstcache="0">
-        <h1 jsselect="heading" jsvalues=".innerHTML:msg" jstcache="5">팀에 힐러가 없음</h1>
+        <h1 jsselect="heading" jsvalues=".innerHTML:msg" jstcache="5">인터넷에 연결되지 않음</h1>
         <p jsselect="summary" jsvalues=".innerHTML:msg" jstcache="2">인터넷에 연결되지 않음</p>
         <div id="suggestions-list" jsdisplay="(suggestionsSummaryList &amp;&amp; suggestionsSummaryList.length)" jstcache="6">
           <p jsvalues=".innerHTML:suggestionsSummaryListHeader" jstcache="13">다음을 시도:</p>
           <ul jsvalues=".className:suggestionsSummaryList.length == 1 ? 'single-suggestion' : ''" jstcache="14" class="">
-            <li jsselect="suggestionsSummaryList" jsvalues=".innerHTML:summary" jstcache="15" jsinstance="0">치유의 노래 간다!</li><li jsselect="suggestionsSummaryList" jsvalues=".innerHTML:summary" jstcache="15" jsinstance="1">오우! 이거 들려?</li><li jsselect="suggestionsSummaryList" jsvalues=".innerHTML:summary" jstcache="15" jsinstance="*2"><a id="diagnose-link" jstcache="0">제대로 놀아보자!</a></li>
+            <li jsselect="suggestionsSummaryList" jsvalues=".innerHTML:summary" jstcache="15" jsinstance="0">네트워크 케이블, 모뎀, 라우터 확인</li><li jsselect="suggestionsSummaryList" jsvalues=".innerHTML:summary" jstcache="15" jsinstance="1">Wi-Fi에 다시 연결</li><li jsselect="suggestionsSummaryList" jsvalues=".innerHTML:summary" jstcache="15" jsinstance="*2"><a id="diagnose-link" jstcache="0">Windows 네트워크 진단 프로그램 실행</a></li>
           </ul>
         </div>
-        <div class="error-code" jscontent="errorCode" jstcache="7">DEVELOPER_IS_PLAYING_LUCIO</div>
+        <div class="error-code" jscontent="errorCode" jstcache="7">DNS_PROBE_FINISHED_NO_INTERNET</div>
         <div id="diagnose-frame" class="hidden" jstcache="0"></div>
       </div>
     </div>
@@ -59,12 +59,17 @@
 
   <button onclick="save()">Save</button>
   <button onclick="load()">Load</button>
-  <script src="/resources/trex.js"></script>
+  <pre id="vis"></pre>
+  <script src="resources/trex.js"></script>
   <script>
   	new Runner(".interstitial-wrapper");
   </script>
-  <script src="/resources/socket.io.js"></script>
-  <script src="/beat-trex.js"></script>
+  <script src="src/experience.js"></script>
+  <script src="src/convnetjs/convnet.js"></script>
+  <script src="src/convnetjs/util.js"></script>
+  <script src="src/brain.js"></script>
+  <script src="src/trex-brain.js"></script>
+  <script src="src/beat-trex.js"></script>
   <script>
     Runner.instance_._GAME_START();
   </script>

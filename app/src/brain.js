@@ -1,7 +1,3 @@
-const Experience = require('./experience.js');
-const convnetjs = require('./convnetjs/convnet.js');
-const cnnutil = require('./convnetjs/util.js');
-
 class Brain{
 	// A Brain object does all the magic.
 	// over time it receives some inputs and some rewards
@@ -240,6 +236,7 @@ class Brain{
 		e.state0 = this.net_window[instanceId][n - 2];
 		e.action0 = this.action_window[instanceId][n - 2];
 		e.state1 = this.net_window[instanceId][n - 1];
+		e.reward_m1 = this.reward_window[instanceId][n - 2];
 		e.rewardData = wholeData;
 
 		const reward = calc(e);
@@ -248,7 +245,7 @@ class Brain{
 		this.reward_window[instanceId].shift();
 		this.reward_window[instanceId].push(reward);
 
-		e.reward0 = this.reward_window[instanceId][n - 2];
+		e.reward0 = reward - this.reward_window[instanceId][n - 3];
 
 		if (!this.learning) {
 			return;
@@ -260,12 +257,6 @@ class Brain{
 		// it is time t+1 and we have to store (s_t, a_t, r_t, s_{t+1}) as new experience
 		// (given that an appropriate number of state measurements already exist, of course)
 		if (this.forward_passes[instanceId] > this.temporal_window + 1) {
-			if(global.db) {
-				await global.db
-					.collection('experiences')
-					.insertOne(e.exportData());
-			}
-
 			this.addToExperiences(e);
 		}
 
@@ -306,7 +297,7 @@ class Brain{
 		}
 	}
 
-	async loadFromDatabase(rewardFunction) {
+	/*async loadFromDatabase(rewardFunction) {
 		const dbCount = await global.db
 			.collection('experiences')
 			.count({});
@@ -329,6 +320,7 @@ class Brain{
 			}
 		}
 	}
+	*/
 
 	visSelf() {
 		let t = '';
@@ -350,9 +342,3 @@ class Brain{
 		};
 	}
 }
-
-
-// A Brain object does all the magic.
-// over time it receives some inputs and some rewards
-// and its job is to set the outputs to maximize the expected reward
-module.exports = Brain;

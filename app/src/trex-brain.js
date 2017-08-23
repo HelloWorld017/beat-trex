@@ -1,8 +1,3 @@
-const Brain = require('./brain');
-const chalk = require('chalk');
-const fs = require('fs');
-//const readline = require('readline');
-
 class TrexBrain {
 	constructor() {
 		this.num_inputs = 600 * 150;
@@ -34,7 +29,7 @@ class TrexBrain {
 		this.opt = {
 			temporal_window: this.temporal_window,
 			experience_size: 50000,
-			start_learn_threshold: 5000,
+			start_learn_threshold: 3000,
 			gamma: 0.6,
 			learning_steps_total: 50000,
 			learning_steps_burnin: 500,
@@ -46,14 +41,13 @@ class TrexBrain {
 
 
 		this.brain = new Brain(this.num_inputs, this.num_actions, this.opt);
-
-		if(!fs.existsSync('./trex-log.dat'))
-			fs.writeFileSync('./trex-log.dat',
-				'Time,Age,AverageReward,AverageLoss,HighScore' + '\n' +
-				`${Date.now()},0,-1,-1,0` + '\n'
-			);
+		localStorage.setItem('trex-log.dat',
+			'Time,Age,AverageReward,AverageLoss,HighScore' + '\n' +
+			`${Date.now()},0,-1,-1,0` + '\n'
+		);
 
 		this.highScore = 0;
+		this.visElem = document.querySelector('#vis');
 	}
 
 	get num_actions() {
@@ -75,8 +69,6 @@ class TrexBrain {
 		if(experience.action0 === 'walk')
 			reward += 0.01;
 
-		console.log(experience.rewardData);
-		console.log(experience.rewardData.jumpedObstacles);
 		if(!experience.rewardData.crashed)
 			reward += experience.rewardData.score / 1000 + experience.rewardData.jumpedObstacles / 20;
 
@@ -93,14 +85,11 @@ class TrexBrain {
 		//readline.moveCursor(process.stdout, 0, visKeys.length);
 		//readline.cursorTo(process.stdout, 0);
 
-		visKeys.forEach((k) => {
-			//readline.clearLine(process.stdout, 0);
-			console.log(chalk`{bgBlue ${k}} : {bgCyan ${vis[k]}}`);
-		});
+		this.visElem.innerText = visKeys.map((k) => `${k}: ${vis[k]}`).join('\n');
 
 		if(this.brain.age % 1000 === 0)
-			fs.appendFileSync(
-				'./trex-log.dat',
+			localStorage.setItem('trex-log.dat',
+				localStorage.getItem('trex-log.dat') +
 				`${Date.now()},${this.brain.age},${vis.reward},${vis.loss},${this.highScore}`
 			);
 	}
@@ -120,9 +109,7 @@ class TrexBrain {
 
 	exportValue() {
 		try{
-			fs.writeFileSync('trex-brain.dat', JSON.stringify(
-				this.brain.value_net.toJSON()
-			));
+			localStorage.setItem("trex-brain.dat", JSON.stringify(this.brain.value_net.toJSON()));
 		}catch(e) {
 			return e;
 		}
@@ -130,13 +117,9 @@ class TrexBrain {
 
 	importValue() {
 		try{
-			this.brain.value_net.fromJSON(
-				JSON.parse(fs.readFileSync('trex-brain.dat'))
-			);
+			this.brain.value_net.fromJSON(JSON.parse(localStorage.getItem("trex-brain.dat")));
 		}catch(e) {
 			return e;
 		}
 	}
 }
-
-module.exports = TrexBrain;

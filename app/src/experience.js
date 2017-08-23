@@ -10,5 +10,3 @@ class Experience{
 		return this;
 	}
 }
-
-module.exports = Experience;
