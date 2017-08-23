@@ -1,4 +1,5 @@
 var convnetjs = convnetjs || { REVISION: 'ALPHA' };
+
 (function(global) {
   "use strict";
 
@@ -97,7 +98,30 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
 
   // syntactic sugar function for getting default parameter values
   var getopt = function(opt, field_name, default_value) {
-    return typeof opt[field_name] !== 'undefined' ? opt[field_name] : default_value;
+    if(typeof field_name === 'string') {
+      // case of single string
+      return (typeof opt[field_name] !== 'undefined') ? opt[field_name] : default_value;
+    } else {
+      // assume we are given a list of string instead
+      var ret = default_value;
+      for(var i=0;i<field_name.length;i++) {
+        var f = field_name[i];
+        if (typeof opt[f] !== 'undefined') {
+          ret = opt[f]; // overwrite return value
+        }
+      }
+      return ret;
+    }
+  }
+
+  function assert(condition, message) {
+    if (!condition) {
+      message = message || "Assertion failed";
+      if (typeof Error !== "undefined") {
+        throw new Error(message);
+      }
+      throw message; // Fallback
+    }
   }
 
   global.randf = randf;
@@ -110,8 +134,10 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
   global.arrUnique = arrUnique;
   global.arrContains = arrContains;
   global.getopt = getopt;
+  global.assert = assert;
   
 })(convnetjs);
+
 (function(global) {
   "use strict";
 
@@ -223,6 +249,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
 
   global.Vol = Vol;
 })(convnetjs);
+
 (function(global) {
   "use strict";
   var Vol = global.Vol; // convenience
@@ -606,6 +633,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
   global.FullyConnLayer = FullyConnLayer;
   
 })(convnetjs);
+
 (function(global) {
   "use strict";
   var Vol = global.Vol; // convenience
@@ -733,24 +761,30 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
 
 })(convnetjs);
 
+
 (function(global) {
   "use strict";
   var Vol = global.Vol; // convenience
-  
+  var getopt = global.getopt;
+
   var InputLayer = function(opt) {
     var opt = opt || {};
 
-    // this is a bit silly but lets allow people to specify either ins or outs
-    this.out_sx = typeof opt.out_sx !== 'undefined' ? opt.out_sx : opt.in_sx;
-    this.out_sy = typeof opt.out_sy !== 'undefined' ? opt.out_sy : opt.in_sy;
-    this.out_depth = typeof opt.out_depth !== 'undefined' ? opt.out_depth : opt.in_depth;
+    // required: depth
+    this.out_depth = getopt(opt, ['out_depth', 'depth'], 0);
+
+    // optional: default these dimensions to 1
+    this.out_sx = getopt(opt, ['out_sx', 'sx', 'width'], 1);
+    this.out_sy = getopt(opt, ['out_sy', 'sy', 'height'], 1);
+    
+    // computed
     this.layer_type = 'input';
   }
   InputLayer.prototype = {
     forward: function(V, is_training) {
       this.in_act = V;
       this.out_act = V;
-      return this.out_act; // dummy identity function for now
+      return this.out_act; // simply identity function for now
     },
     backward: function() { },
     getParamsAndGrads: function() {
@@ -774,6 +808,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
 
   global.InputLayer = InputLayer;
 })(convnetjs);
+
 (function(global) {
   "use strict";
   var Vol = global.Vol; // convenience
@@ -887,6 +922,9 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
       return V; // identity function
     },
     // y is a list here of size num_inputs
+    // or it can be a number if only one value is regressed
+    // or it can be a struct {dim: i, val: x} where we only want to 
+    // regress on dimension i and asking it to have value x
     backward: function(y) { 
 
       // compute and accumulate gradient wrt weights and bias of this layer
@@ -897,8 +935,13 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
         for(var i=0;i<this.out_depth;i++) {
           var dy = x.w[i] - y[i];
           x.dw[i] = dy;
-          loss += 2*dy*dy;
+          loss += 0.5*dy*dy;
         }
+      } else if(typeof y === 'number') {
+        // lets hope that only one number is being regressed
+        var dy = x.w[0] - y;
+        x.dw[0] = dy;
+        loss += 0.5*dy*dy;
       } else {
         // assume it is a struct with entries .dim and .val
         // and we pass gradient only along dimension dim to be equal to val
@@ -906,7 +949,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
         var yi = y.val;
         var dy = x.w[i] - yi;
         x.dw[i] = dy;
-        loss += 2*dy*dy;
+        loss += 0.5*dy*dy;
       }
       return loss;
     },
@@ -954,19 +997,20 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
       var x = this.in_act;
       x.dw = global.zeros(x.w.length); // zero out the gradient of input Vol
 
+      // we're using structured loss here, which means that the score
+      // of the ground truth should be higher than the score of any other 
+      // class, by a margin
       var yscore = x.w[y]; // score of ground truth
       var margin = 1.0;
       var loss = 0.0;
       for(var i=0;i<this.out_depth;i++) {
-        if(-yscore + x.w[i] + margin > 0) {
-          // violating example, apply loss
-          // I love hinge loss, by the way. Truly.
-          // Seriously, compare this SVM code with Softmax forward AND backprop code above
-          // it's clear which one is superior, not only in code, simplicity
-          // and beauty, but also in practice.
+        if(y === i) { continue; }
+        var ydiff = -yscore + x.w[i] + margin;
+        if(ydiff > 0) {
+          // violating dimension, apply loss
           x.dw[i] += 1;
           x.dw[y] -= 1;
-          loss += -yscore + x.w[i] + margin;
+          loss += ydiff;
         }
       }
 
@@ -998,6 +1042,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
   global.SVMLayer = SVMLayer;
 
 })(convnetjs);
+
 
 (function(global) {
   "use strict";
@@ -1290,6 +1335,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
 
 })(convnetjs);
 
+
 (function(global) {
   "use strict";
   var Vol = global.Vol; // convenience
@@ -1365,6 +1411,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
 
   global.DropoutLayer = DropoutLayer;
 })(convnetjs);
+
 (function(global) {
   "use strict";
   var Vol = global.Vol; // convenience
@@ -1479,10 +1526,12 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
 
   global.LocalResponseNormalizationLayer = LocalResponseNormalizationLayer;
 })(convnetjs);
+
 (function(global) {
   "use strict";
   var Vol = global.Vol; // convenience
-  
+  var assert = global.assert;
+
   // Net manages a set of layers
   // For now constraints: Simple linear order of layers, first layer input last layer a cost layer
   var Net = function(options) {
@@ -1494,11 +1543,11 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
     // takes a list of layer definitions and creates the network layer objects
     makeLayers: function(defs) {
 
-      // few checks for now
-      if(defs.length<2) {console.log('ERROR! For now at least have input and softmax layers.');}
-      if(defs[0].type !== 'input') {console.log('ERROR! For now first layer should be input.');}
+      // few checks
+      assert(defs.length >= 2, 'Error! At least one input layer and one loss layer are required.');
+      assert(defs[0].type === 'input', 'Error! First layer must be the input layer, to declare size of inputs');
 
-      // desugar syntactic for adding activations and dropouts
+      // desugar layer_defs for adding activation, dropout layers etc
       var desugar = function() {
         var new_defs = [];
         for(var i=0;i<defs.length;i++) {
@@ -1523,14 +1572,6 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
               def.bias_pref = 0.1; // relus like a bit of positive bias to get gradients early
               // otherwise it's technically possible that a relu unit will never turn on (by chance)
               // and will never get any gradient and never contribute any computation. Dead relu.
-            }
-          }
-          
-          if(typeof def.tensor !== 'undefined') {
-            // apply quadratic transform so that the upcoming multiply will include
-            // quadratic terms, equivalent to doing a tensor product
-            if(def.tensor) {
-              new_defs.push({type: 'quadtransform'});
             }
           }
 
@@ -1580,16 +1621,17 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
           case 'sigmoid': this.layers.push(new global.SigmoidLayer(def)); break;
           case 'tanh': this.layers.push(new global.TanhLayer(def)); break;
           case 'maxout': this.layers.push(new global.MaxoutLayer(def)); break;
-          case 'quadtransform': this.layers.push(new global.QuadTransformLayer(def)); break;
           case 'svm': this.layers.push(new global.SVMLayer(def)); break;
-          default: console.log('ERROR: UNRECOGNIZED LAYER TYPE!');
+          default: console.log('ERROR: UNRECOGNIZED LAYER TYPE: ' + def.type);
         }
       }
     },
 
-    // forward prop the network. A trainer will pass in is_training = true
+    // forward prop the network. 
+    // The trainer class passes is_training = true, but when this function is
+    // called from outside (not from the trainer), it defaults to prediction mode
     forward: function(V, is_training) {
-      if(typeof(is_training)==='undefined') is_training = false;
+      if(typeof(is_training) === 'undefined') is_training = false;
       var act = this.layers[0].forward(V, is_training);
       for(var i=1;i<this.layers.length;i++) {
         act = this.layers[i].forward(act, is_training);
@@ -1607,7 +1649,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
     // backprop: compute gradients wrt all parameters
     backward: function(y) {
       var N = this.layers.length;
-      var loss = this.layers[N-1].backward(y); // last layer assumed softmax
+      var loss = this.layers[N-1].backward(y); // last layer assumed to be loss layer
       for(var i=N-2;i>=0;i--) { // first layer assumed input
         this.layers[i].backward();
       }
@@ -1625,14 +1667,18 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
       return response;
     },
     getPrediction: function() {
-      var S = this.layers[this.layers.length-1]; // softmax layer
+      // this is a convenience function for returning the argmax
+      // prediction, assuming the last layer of the net is a softmax
+      var S = this.layers[this.layers.length-1];
+      assert(S.layer_type === 'softmax', 'getPrediction function assumes softmax as last layer of the net!');
+
       var p = S.out_act.w;
       var maxv = p[0];
       var maxi = 0;
       for(var i=1;i<p.length;i++) {
         if(p[i] > maxv) { maxv = p[i]; maxi = i;}
       }
-      return maxi;
+      return maxi; // return index of the class with highest class probability
     },
     toJSON: function() {
       var json = {};
@@ -1660,7 +1706,6 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
         if(t==='regression') { L = new global.RegressionLayer(); }
         if(t==='fc') { L = new global.FullyConnLayer(); }
         if(t==='maxout') { L = new global.MaxoutLayer(); }
-        if(t==='quadtransform') { L = new global.QuadTransformLayer(); }
         if(t==='svm') { L = new global.SVMLayer(); }
         L.fromJSON(Lj);
         this.layers.push(L);
@@ -1668,9 +1713,9 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
     }
   }
   
-
   global.Net = Net;
 })(convnetjs);
+
 (function(global) {
   "use strict";
   var Vol = global.Vol; // convenience
@@ -1684,15 +1729,23 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
     this.l1_decay = typeof options.l1_decay !== 'undefined' ? options.l1_decay : 0.0;
     this.l2_decay = typeof options.l2_decay !== 'undefined' ? options.l2_decay : 0.0;
     this.batch_size = typeof options.batch_size !== 'undefined' ? options.batch_size : 1;
-    this.method = typeof options.method !== 'undefined' ? options.method : 'sgd'; // sgd/adagrad/adadelta/windowgrad
+    this.method = typeof options.method !== 'undefined' ? options.method : 'sgd'; // sgd/adam/adagrad/adadelta/windowgrad/netsterov
 
     this.momentum = typeof options.momentum !== 'undefined' ? options.momentum : 0.9;
     this.ro = typeof options.ro !== 'undefined' ? options.ro : 0.95; // used in adadelta
-    this.eps = typeof options.eps !== 'undefined' ? options.eps : 1e-6; // used in adadelta
+    this.eps = typeof options.eps !== 'undefined' ? options.eps : 1e-8; // used in adam or adadelta
+    this.beta1 = typeof options.beta1 !== 'undefined' ? options.beta1 : 0.9; // used in adam
+    this.beta2 = typeof options.beta2 !== 'undefined' ? options.beta2 : 0.999; // used in adam
 
     this.k = 0; // iteration counter
     this.gsum = []; // last iteration gradients (used for momentum calculations)
-    this.xsum = []; // used in adadelta
+    this.xsum = []; // used in adam or adadelta
+
+    // check if regression is expected 
+    if(this.net.layers[this.net.layers.length - 1].layer_type === "regression")
+      this.regression = true;
+    else
+      this.regression = false;
   }
 
   Trainer.prototype = {
@@ -1709,6 +1762,9 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
       var l1_decay_loss = 0.0;
       var end = new Date().getTime();
       var bwd_time = end - start;
+
+      //if(this.regression && y.constructor !== Array)
+      //  console.log("Warning: a regression net requires an array as training output vector.");
       
       this.k++;
       if(this.k % this.batch_size === 0) {
@@ -1720,10 +1776,10 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
           // only vanilla sgd doesnt need either lists
           // momentum needs gsum
           // adagrad needs gsum
-          // adadelta needs gsum and xsum
+          // adam and adadelta needs gsum and xsum
           for(var i=0;i<pglist.length;i++) {
             this.gsum.push(global.zeros(pglist[i].params.length));
-            if(this.method === 'adadelta') {
+            if(this.method === 'adam' || this.method === 'adadelta') {
               this.xsum.push(global.zeros(pglist[i].params.length));
             } else {
               this.xsum.push([]); // conserve memory
@@ -1754,7 +1810,15 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
 
             var gsumi = this.gsum[i];
             var xsumi = this.xsum[i];
-            if(this.method === 'adagrad') {
+            if(this.method === 'adam') {
+              // adam update
+              gsumi[j] = gsumi[j] * this.beta1 + (1- this.beta1) * gij; // update biased first moment estimate
+              xsumi[j] = xsumi[j] * this.beta2 + (1-this.beta2) * gij * gij; // update biased second moment estimate
+              var biasCorr1 = gsumi[j] * (1 - Math.pow(this.beta1, this.k)); // correct bias first moment estimate
+              var biasCorr2 = xsumi[j] * (1 - Math.pow(this.beta2, this.k)); // correct bias second moment estimate
+              var dx =  - this.learning_rate * biasCorr1 / (Math.sqrt(biasCorr2) + this.eps);
+              p[j] += dx;
+            } else if(this.method === 'adagrad') {
               // adagrad update
               gsumi[j] = gsumi[j] + gij * gij;
               var dx = - this.learning_rate / Math.sqrt(gsumi[j] + this.eps) * gij;
@@ -1767,11 +1831,15 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
               var dx = - this.learning_rate / Math.sqrt(gsumi[j] + this.eps) * gij; // eps added for better conditioning
               p[j] += dx;
             } else if(this.method === 'adadelta') {
-              // assume adadelta if not sgd or adagrad
               gsumi[j] = this.ro * gsumi[j] + (1-this.ro) * gij * gij;
               var dx = - Math.sqrt((xsumi[j] + this.eps)/(gsumi[j] + this.eps)) * gij;
               xsumi[j] = this.ro * xsumi[j] + (1-this.ro) * dx * dx; // yes, xsum lags behind gsum by 1.
               p[j] += dx;
+            } else if(this.method === 'nesterov') {
+            	var dx = gsumi[j];
+            	gsumi[j] = gsumi[j] * this.momentum + this.learning_rate * gij;
+                dx = this.momentum * dx - (1.0 + this.momentum) * gsumi[j];
+                p[j] += dx;
             } else {
               // assume SGD
               if(this.momentum > 0.0) {
@@ -1803,6 +1871,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
   global.Trainer = Trainer;
   global.SGDTrainer = Trainer; // backwards compatibility
 })(convnetjs);
+
 
 (function(global) {
   "use strict";
@@ -2044,11 +2113,24 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
     predict_soft: function(data) {
       // forward prop the best networks
       // and accumulate probabilities at last layer into a an output Vol
-      var nv = Math.min(this.ensemble_size, this.evaluated_candidates.length);
-      if(nv === 0) { return new convnetjs.Vol(0,0,0); } // not sure what to do here? we're not ready yet
+
+      var eval_candidates = [];
+      var nv = 0;
+      if(this.evaluated_candidates.length === 0) {
+        // not sure what to do here, first batch of nets hasnt evaluated yet
+        // lets just predict with current candidates.
+        nv = this.candidates.length;
+        eval_candidates = this.candidates;
+      } else {
+        // forward prop the best networks from evaluated_candidates
+        nv = Math.min(this.ensemble_size, this.evaluated_candidates.length);
+        eval_candidates = this.evaluated_candidates
+      }
+
+      // forward nets of all candidates and average the predictions
       var xout, n;
       for(var j=0;j<nv;j++) {
-        var net = this.evaluated_candidates[j].net;
+        var net = eval_candidates[j].net;
         var x = net.forward(data);
         if(j===0) { 
           xout = x; 
@@ -2062,7 +2144,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
       }
       // produce average
       for(var d=0;d<n;d++) {
-        xout.w[d] /= n;
+        xout.w[d] /= nv;
       }
       return xout;
     },
@@ -2112,11 +2194,13 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
 
   global.MagicNet = MagicNet;
 })(convnetjs);
+
 (function(lib) {
   "use strict";
   if (typeof module === "undefined" || typeof module.exports === "undefined") {
-    window.jsfeat = lib; // in ordinary browser attach library to window
+    window.convnetjs = lib; // in ordinary browser attach library to window
   } else {
     module.exports = lib; // in nodejs
   }
 })(convnetjs);
+

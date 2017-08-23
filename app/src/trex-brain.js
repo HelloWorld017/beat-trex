@@ -1,15 +1,13 @@
 class TrexBrain {
 	constructor() {
-		this.num_inputs = 600 * 150;
+		this.seeing_obstacles = 4;
+		this.num_inputs = 2 + this.seeing_obstacles * 4;
 		this.actions = ['walk', 'jump', 'duck'];
 		this.temporal_window = 2; //Previous input feeded by forward function
 
 		this.layer_defs = [
-			{type: 'input', out_sx: 600, out_sy: 150, out_depth: 3},
-			{type: 'conv', },
-			{type: 'conv', sx: 5, filters: 10, stride: 1, pad: 1, activation: 'relu'},
-			{type: 'pool', sx: 3, stride: 3},
-			{type: 'conv', sx: 3, filters: 10, stride: 1, activation: 'relu'},
+			{type: 'input', out_sx: 1, out_sy: 1, out_depth: this.network_size},
+			{type: 'fc', num_neurons: 40, activation: 'relu'},
 			{type: 'fc', num_neurons: 20, activation: 'relu'},
 			{type: 'fc', num_neurons: 8, activation: 'relu'},
 			{type: 'regression', num_neurons: this.num_actions}
@@ -28,10 +26,10 @@ class TrexBrain {
 
 		this.opt = {
 			temporal_window: this.temporal_window,
-			experience_size: 50000,
+			experience_size: 10000,
 			start_learn_threshold: 3000,
 			gamma: 0.6,
-			learning_steps_total: 50000,
+			learning_steps_total: 10000,
 			learning_steps_burnin: 500,
 			epsilon_min: 0.05,
 			epsilon_test_time: 0.05,
@@ -47,7 +45,10 @@ class TrexBrain {
 		);
 
 		this.highScore = 0;
+		this.latest_jumped_obs = 0;
 		this.visElem = document.querySelector('#vis');
+
+		this.calculator = this.calcReward.bind(this);
 	}
 
 	get num_actions() {
@@ -61,6 +62,7 @@ class TrexBrain {
 	calcReward(experience) {
 		let reward = experience.rewardData.crashed ? -1 : 0;
 
+		/*
 		//tRex loves doing same thing
 		if(experience.rewardData.before === experience.action0)
 			reward += 0.01;
@@ -68,16 +70,20 @@ class TrexBrain {
 		//tRex loves walking straight.
 		if(experience.action0 === 'walk')
 			reward += 0.01;
+		*/
+
+		this.latest_jumped_obs = experience.rewardData.jumpedObstacles;
 
 		if(!experience.rewardData.crashed)
-			reward += experience.rewardData.score / 1000 + experience.rewardData.jumpedObstacles / 20;
+			reward += experience.rewardData.jumpedObstacles / 20;
 
 		return reward;
 	}
 
 	async backward(data, instanceId) {
-		await this.brain.backward(data, instanceId, this.calcReward);
+		await this.brain.backward(data, instanceId, this.calculator);
 		const vis = this.visualize();
+		vis.jumpedObs = this.latest_jumped_obs;
 		const visKeys = Object.keys(vis);
 
 		if(data.score > this.highScore) this.highScore = data.score;
@@ -95,7 +101,6 @@ class TrexBrain {
 	}
 
 	forward(inputArray, instanceId) {
-		console.log(this.brain.forward(inputArray, instanceId));
 		return this.actions[this.brain.forward(inputArray, instanceId)];
 	}
 

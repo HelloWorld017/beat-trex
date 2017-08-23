@@ -852,10 +852,10 @@ Runner.prototype = {
   onVisibilityChange: function(e) {
     if (document.hidden || document.webkitHidden || e.type == 'blur' ||
       document.visibilityState != 'visible') {
-      this.stop();
+      //this.stop();
     } else if (!this.crashed) {
-      this.tRex.reset();
-      this.play();
+      //this.tRex.reset();
+      //this.play();
     }
   },
 

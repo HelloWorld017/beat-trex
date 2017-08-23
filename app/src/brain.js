@@ -42,8 +42,8 @@ class Brain{
 		// x0,a0,x1,a1,x2,a2,...xt
 		// this variable controls the size of that temporal window. Actions are
 		// encoded as 1-of-k hot vectors
-		//this.net_inputs = num_states * this.temporal_window + num_actions * this.temporal_window + num_states;
-		this.net_inputs = num_states * (this.temporal_window + 1);
+		this.net_inputs = num_states * this.temporal_window + num_actions * this.temporal_window + num_states;
+		//this.net_inputs = num_states * (this.temporal_window + 1);
 		this.num_states = num_states;
 		this.num_actions = num_actions;
 		this.window_size = Math.max(this.temporal_window, 2); // must be at least 2, but if we want more context even more
@@ -147,21 +147,19 @@ class Brain{
 	getNetInput(xt, instanceId) {
 		// return s = (x,a,x,a,x,a,xt) state vector.
 		// It's a concatenation of last window_size (x,a) pairs and current state x
-		const w = [];
-		//w = w.concat(xt); // start with current state
-		w.push(xt);
+		let w = [];
+		w = w.concat(xt); // start with current state
 		// and now go backwards and append states and actions from history temporal_window times
 		var n = this.window_size;
 		for (var k = 0; k < this.temporal_window; k++) {
 			// state
-			//w = w.concat(this.state_window[instanceId][n - 1 - k]);
-			w.push(this.state_window[instanceId][n - 1 - k]);
+			w = w.concat(this.state_window[instanceId][n - 1 - k]);
 			// action, encoded as 1-of-k indicator vector. We scale it up a bit because
 			// we dont want weight regularization to undervalue this information, as it only exists once
-			/*var action1ofk = new Array(this.num_actions);
+			var action1ofk = new Array(this.num_actions);
 			for (var q = 0; q < this.num_actions; q++) action1ofk[q] = 0.0;
 			action1ofk[this.action_window[instanceId][n - 1 - k]] = 1.0 * this.num_states;
-			w = w.concat(action1ofk);*/
+			w = w.concat(action1ofk);
 		}
 		return w;
 	}
@@ -236,16 +234,18 @@ class Brain{
 		e.state0 = this.net_window[instanceId][n - 2];
 		e.action0 = this.action_window[instanceId][n - 2];
 		e.state1 = this.net_window[instanceId][n - 1];
-		e.reward_m1 = this.reward_window[instanceId][n - 2];
 		e.rewardData = wholeData;
 
 		const reward = calc(e);
+
+		e.rewardData = undefined;
+		
 		this.latest_reward = reward;
 		this.average_reward_window.add(reward);
 		this.reward_window[instanceId].shift();
 		this.reward_window[instanceId].push(reward);
 
-		e.reward0 = reward - this.reward_window[instanceId][n - 3];
+		e.reward0 = reward;
 
 		if (!this.learning) {
 			return;

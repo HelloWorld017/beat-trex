@@ -32,29 +32,44 @@ const blend = (channel, alpha) =>
 	channel * alpha + 247 * (1 - alpha);
 
 const getInput = () => {
-	const canvas = Runner.instance_.canvas;
-	let img = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-	let input = Array(canvas.width);
-	for(let y = 0; y < canvas.height; y++) {
-		let offset = y * canvas.width * 4;
-		let inputX = Array(canvas.width);
+	const data = getRewardData();
+	let input_array = [Runner.instance_.tRex.yPos / 150, data.speed / 10];
+	Runner.instance_.horizon.obstacles.slice(0, trex.seeing_obstacles).forEach((v) => {
+		input_array.push(v.xPos / 600, v.yPos / 150, v.typeConfig.width / 600, v.typeConfig.height / 150);
+	});
 
-		for(let x = 0; x < canvas.width; x++) {
-			let alpha = img[offset + x * 4 + 3] / 255;
-
-			if (
-				luminosity(
-					blend(img[offset + x * 4], alpha),
-					blend(img[offset + x * 4 + 1], alpha),
-					blend(img[offset + x * 4 + 2], alpha)
-				) > 0.5
-			) inputX[x] = 0;
-			else inputX[x] = 1;
-		}
-
-		input[y] = inputX;
+	while(input_array.length < trex.num_inputs){
+		input_array.push(-10, 100, 0, 0);
 	}
-	return input;
+
+	return input_array;
+};
+
+const getRewardData = () => {
+	const lastObstacle = Runner.instance_.horizon.obstacles[0];
+	let lastObstacleData = {};
+	if(lastObstacle) lastObstacleData = {
+		x: lastObstacle.xPos,
+		y: lastObstacle.yPos,
+		w: lastObstacle.typeConfig.width,
+		h: lastObstacle.typeConfig.height
+	};
+
+	Runner.instance_.horizon.obstacles.forEach((v) => {
+		if(v.xPos < Runner.instance_.tRex.xPos && v.calculated === undefined) {
+			jumped++;
+			v.calculated = true;
+		}
+	});
+
+	return {
+		score: parseInt(Runner.instance_.distanceMeter.digits.join(''), 10),
+		crashed: Runner.instance_.crashed,
+		before: before,
+		speed: Runner.instance_.currentSpeed,
+		lastObstacle: lastObstacleData,
+		jumpedObstacles: jumped
+	};
 };
 
 const learn = () => {
@@ -72,30 +87,7 @@ const learn = () => {
 
 	actions[next]();
 
-	const lastObstacle = Runner.instance_.horizon.obstacles[0];
-	let lastObstacleData = {};
-	if(lastObstacle) lastObstacleData = {
-		x: lastObstacle.xPos,
-		y: lastObstacle.yPos,
-		w: lastObstacle.typeConfig.width,
-		h: lastObstacle.typeConfig.height
-	};
-
-	Runner.instance_.horizon.obstacles.forEach((v) => {
-		if(v.xPos < Runner.instance_.tRex.xPos && v.calculated === undefined) {
-			jumped++;
-			v.calculated = true;
-		}
-	});
-
-	const rewardData = {
-		score: parseInt(Runner.instance_.distanceMeter.digits.join(''), 10),
-		crashed: Runner.instance_.crashed,
-		before: before,
-		speed: Runner.instance_.currentSpeed,
-		lastObstacle: lastObstacleData,
-		jumpedObstacles: jumped
-	};
+	const rewardData = getRewardData();
 
 	before = next;
 	trex.backward(rewardData, id);
