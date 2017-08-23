@@ -102,3 +102,5 @@ const learn = () => {
 
 	setTimeout(learn, 20);
 };
+
+learn();
