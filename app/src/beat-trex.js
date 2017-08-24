@@ -22,7 +22,10 @@ let id = trex.createInstance();
 let jumped = 0;
 let before = 'walk';
 
-window.onGameOver = () => jumped = 0;
+window.onGameOver = () => {
+	jumped = 0;
+	trex.reset();
+};
 
 const save = () => trex.export();
 const load = () => trex.import();
@@ -39,7 +42,7 @@ const getInput = () => {
 	});
 
 	while(input_array.length < trex.num_inputs){
-		input_array.push(-10, 100, 0, 0);
+		input_array.push(-10 / 600, 100 / 150, 0, 0);
 	}
 
 	return input_array;
@@ -56,7 +59,7 @@ const getRewardData = () => {
 	};
 
 	Runner.instance_.horizon.obstacles.forEach((v) => {
-		if(v.xPos < Runner.instance_.tRex.xPos && v.calculated === undefined) {
+		if(v.xPos + v.typeConfig.width < Runner.instance_.tRex.xPos && v.calculated === undefined) {
 			jumped++;
 			v.calculated = true;
 		}
@@ -76,14 +79,15 @@ const learn = () => {
 	if(!Runner.instance_.playing && !Runner.instance_.crashed){
 		//setTimeout(learn, 20);
 		Runner.instance_.startGame();
-		setTimeout(learn, 20);
 		return;
 	}
+
+	if(Runner.instance_.horizon.obstacles.length <= 0) return;
+	if(Runner.instance_.horizon.obstacles[0].xPos - Runner.instance_.tRex.xPos >= 200) return;
 
 	const next = trex.forward(getInput(), id);
 
 	//Runner.instance_.update(20);
-	//if(Runner.instance_.horizon.obstacles.length <= 0) return;
 
 	actions[next]();
 
@@ -92,7 +96,7 @@ const learn = () => {
 	before = next;
 	trex.backward(rewardData, id);
 
-	setTimeout(learn, 20);
+	if(rewardData.crashed) Runner.instance_.restart();
 };
 
-learn();
+setInterval(learn, 20);

@@ -803,10 +803,6 @@ Runner.prototype = {
 
     // Reset the time clock.
     this.time = getTimeStamp();
-    var _this = this;
-    setTimeout(function(){
-    	_this.restart();
-    }, 25);
   },
 
   stop: function() {

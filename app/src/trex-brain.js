@@ -27,9 +27,9 @@ class TrexBrain {
 		this.opt = {
 			temporal_window: this.temporal_window,
 			experience_size: 10000,
-			start_learn_threshold: 3000,
+			start_learn_threshold: 1000,
 			gamma: 0.6,
-			learning_steps_total: 10000,
+			learning_steps_total: 5000,
 			learning_steps_burnin: 500,
 			epsilon_min: 0.05,
 			epsilon_test_time: 0.05,
@@ -49,6 +49,8 @@ class TrexBrain {
 		this.visElem = document.querySelector('#vis');
 
 		this.calculator = this.calcReward.bind(this);
+		this.latest_jumped_obs = 0;
+		this._age = 0;
 	}
 
 	get num_actions() {
@@ -59,29 +61,37 @@ class TrexBrain {
 		return this.num_inputs * this.temporal_window + this.num_actions * this.temporal_window + this.num_inputs;
 	}
 
-	calcReward(experience) {
-		let reward = experience.rewardData.crashed ? -1 : 0;
+	reset() {
+		this.latest_jumped_obs = 0;
+	}
 
-		/*
+	calcReward(experience) {
+		let reward = experience.rewardData.crashed ? -1 : 1;
+
+
 		//tRex loves doing same thing
-		if(experience.rewardData.before === experience.action0)
-			reward += 0.01;
+		//if(experience.rewardData.before === experience.action0)
+			//reward += 0.01;
 
 		//tRex loves walking straight.
-		if(experience.action0 === 'walk')
-			reward += 0.01;
-		*/
+		//if(experience.action0 === 'walk')
+			//reward += 0.01;
+
+
+		//if(!experience.rewardData.crashed)
+			//reward += experience.rewardData.jumpedObstacles / 10 + experience.rewardData.score / 100;
+			//reward += experience.rewardData.jumpedObstacles - this.latest_jumped_obs;
 
 		this.latest_jumped_obs = experience.rewardData.jumpedObstacles;
-
-		if(!experience.rewardData.crashed)
-			reward += experience.rewardData.jumpedObstacles / 20;
 
 		return reward;
 	}
 
-	async backward(data, instanceId) {
-		await this.brain.backward(data, instanceId, this.calculator);
+	backward(data, instanceId) {
+		this._age++;
+		if(data.jumpedObstacles < this.latest_jumped_obs && !data.crashed) return;
+
+		this.brain.backward(data, instanceId, this.calculator);
 		const vis = this.visualize();
 		vis.jumpedObs = this.latest_jumped_obs;
 		const visKeys = Object.keys(vis);

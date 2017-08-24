@@ -104,6 +104,7 @@ class Brain{
 		this.learning = true;
 		this.instances = 0;
 		this.activeInstances = 0;
+		this.time_last = 0;
 	}
 
 	random_action(){
@@ -225,42 +226,46 @@ class Brain{
 		this.action_window[instanceId].shift();
 		this.action_window[instanceId].push(action);
 
+		this.time_last++;
 		return action;
 	}
 
-	async backward(wholeData, instanceId, calc) {
-		const e = new Experience();
-		const n = this.window_size;
-		e.state0 = this.net_window[instanceId][n - 2];
-		e.action0 = this.action_window[instanceId][n - 2];
-		e.state1 = this.net_window[instanceId][n - 1];
-		e.rewardData = wholeData;
+	backward(wholeData, instanceId, calc) {
+		for(let i = 0; i < this.time_last; i++) {
+			const e = new Experience();
+			const n = this.window_size - i;
+			e.state0 = this.net_window[instanceId][n - 2];
+			e.action0 = this.action_window[instanceId][n - 2];
+			e.state1 = this.net_window[instanceId][n - 1];
+			e.rewardData = wholeData;
 
-		const reward = calc(e);
+			const reward = calc(e);
 
-		e.rewardData = undefined;
-		
-		this.latest_reward = reward;
-		this.average_reward_window.add(reward);
-		this.reward_window[instanceId].shift();
-		this.reward_window[instanceId].push(reward);
+			e.rewardData = undefined;
 
-		e.reward0 = reward;
+			this.latest_reward = reward;
+			this.average_reward_window.add(reward);
+			this.reward_window[instanceId].shift();
+			this.reward_window[instanceId].push(reward);
 
-		if (!this.learning) {
-			return;
+			e.reward0 = reward;
+
+			if (!this.learning) {
+				return;
+			}
+
+			// various book-keeping
+			this.age += 1;
+
+			// it is time t+1 and we have to store (s_t, a_t, r_t, s_{t+1}) as new experience
+			// (given that an appropriate number of state measurements already exist, of course)
+			if (this.forward_passes[instanceId] > this.temporal_window + 1) {
+				this.addToExperiences(e);
+			}
+
+			this.experienceReplay();
 		}
-
-		// various book-keeping
-		this.age += 1;
-
-		// it is time t+1 and we have to store (s_t, a_t, r_t, s_{t+1}) as new experience
-		// (given that an appropriate number of state measurements already exist, of course)
-		if (this.forward_passes[instanceId] > this.temporal_window + 1) {
-			this.addToExperiences(e);
-		}
-
-		this.experienceReplay();
+		this.time_last = 0;
 	}
 
 	addToExperiences(e) {
