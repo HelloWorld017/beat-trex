@@ -38,6 +38,7 @@ const getInput = () => {
 	const data = getRewardData();
 	let input_array = [Runner.instance_.tRex.yPos / 150, data.speed / 10];
 	Runner.instance_.horizon.obstacles.slice(0, trex.seeing_obstacles).forEach((v) => {
+		//No preprocessing
 		input_array.push(v.xPos / 600, v.yPos / 150, v.typeConfig.width / 600, v.typeConfig.height / 150);
 	});
 

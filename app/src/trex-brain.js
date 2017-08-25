@@ -3,7 +3,7 @@ class TrexBrain {
 		this.seeing_obstacles = 4;
 		this.num_inputs = 2 + this.seeing_obstacles * 4;
 		this.actions = ['walk', 'jump', 'duck'];
-		this.temporal_window = 3; //Previous input feeded by forward function
+		this.temporal_window = 2; //Previous input feeded by forward function
 
 		this.layer_defs = [
 			{type: 'input', out_sx: 1, out_sy: 1, out_depth: this.network_size},
