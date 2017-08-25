@@ -29,7 +29,7 @@ class TrexBrain {
 			experience_size: 10000,
 			start_learn_threshold: 1000,
 			gamma: 0.6,
-			learning_steps_total: 5000,
+			learning_steps_total: 1000,
 			learning_steps_burnin: 500,
 			epsilon_min: 0.05,
 			epsilon_test_time: 0.05,
