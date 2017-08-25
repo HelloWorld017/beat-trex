@@ -27,8 +27,8 @@ window.onGameOver = () => {
 	trex.reset();
 };
 
-const save = () => trex.export();
-const load = () => trex.import();
+const save = () => trex.exportValue();
+const load = () => trex.importValue();
 const luminosity = (r, g, b) =>
 	0.2126 * Math.pow(r / 255, 2.2) + 0.7152 * Math.pow(g / 255, 2.2) + 0.0722 * Math.pow(b / 255, 2.2);
 const blend = (channel, alpha) =>
@@ -82,8 +82,10 @@ const learn = () => {
 		return;
 	}
 
-	if(Runner.instance_.horizon.obstacles.length <= 0) return;
-	if(Runner.instance_.horizon.obstacles[0].xPos - Runner.instance_.tRex.xPos >= 200) return;
+	if(!Runner.instance_.crashed) {
+		if(Runner.instance_.horizon.obstacles.length <= 0) return;
+		if(Runner.instance_.horizon.obstacles[0].xPos - Runner.instance_.tRex.xPos >= 200) return;
+	}
 
 	const next = trex.forward(getInput(), id);
 

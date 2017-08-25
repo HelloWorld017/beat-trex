@@ -46,7 +46,7 @@ class Brain{
 		//this.net_inputs = num_states * (this.temporal_window + 1);
 		this.num_states = num_states;
 		this.num_actions = num_actions;
-		this.window_size = Math.max(this.temporal_window, 2); // must be at least 2, but if we want more context even more
+		this.window_size = Math.max(this.temporal_window, 128); // must be at least 2, but if we want more context even more
 		this.state_window = [];
 		this.action_window = [];
 		this.reward_window = [];
@@ -239,9 +239,20 @@ class Brain{
 			e.state1 = this.net_window[instanceId][n - 1];
 			e.rewardData = wholeData;
 
+			if(!e.state0) {
+				console.error("No State!", `Minibatch ${i}/${this.time_last}`);
+				continue;
+			}
+
+			if(e.state0.length === 0) {
+				console.error("Blank State!", `Minibatch ${i}/${this.time_last}`);
+				continue;
+			}
+
 			const reward = calc(e);
 
 			e.rewardData = undefined;
+
 
 			this.latest_reward = reward;
 			this.average_reward_window.add(reward);
@@ -251,7 +262,7 @@ class Brain{
 			e.reward0 = reward;
 
 			if (!this.learning) {
-				return;
+				continue;
 			}
 
 			// various book-keeping
@@ -263,8 +274,9 @@ class Brain{
 				this.addToExperiences(e);
 			}
 
-			this.experienceReplay();
 		}
+
+		console.log("Clearing minibatch")
 		this.time_last = 0;
 	}
 
