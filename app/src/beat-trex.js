@@ -29,6 +29,20 @@ window.onGameOver = () => {
 
 const save = () => trex.exportValue();
 const load = () => trex.importValue();
+const download = () => {
+	const a = document.createElement('a');
+	a.href = `data:text/csv;base64,${btoa(localStorage.getItem('trex-log.dat'))}`;
+	a.download = 'trex-log.csv';
+	a.click();
+};
+
+const downloadNet = () => {
+	const a = document.createElement('a');
+	a.href = `data:text/json;base64,${btoa(localStorage.getItem('trex-brain.dat'))}`;
+	a.download = 'trex-brain.json';
+	a.click();
+};
+
 const luminosity = (r, g, b) =>
 	0.2126 * Math.pow(r / 255, 2.2) + 0.7152 * Math.pow(g / 255, 2.2) + 0.0722 * Math.pow(b / 255, 2.2);
 const blend = (channel, alpha) =>

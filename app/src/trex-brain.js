@@ -3,7 +3,7 @@ class TrexBrain {
 		this.seeing_obstacles = 4;
 		this.num_inputs = 2 + this.seeing_obstacles * 4;
 		this.actions = ['walk', 'jump', 'duck'];
-		this.temporal_window = 2; //Previous input feeded by forward function
+		this.temporal_window = 4; //Previous input feeded by forward function
 
 		this.layer_defs = [
 			{type: 'input', out_sx: 1, out_sy: 1, out_depth: this.network_size},
@@ -39,10 +39,6 @@ class TrexBrain {
 
 
 		this.brain = new Brain(this.num_inputs, this.num_actions, this.opt);
-		localStorage.setItem('trex-log.dat',
-			'Time,Age,AverageReward,AverageLoss,HighScore' + '\n' +
-			`${Date.now()},0,-1,-1,0` + '\n'
-		);
 
 		this.highScore = 0;
 		this.latest_jumped_obs = 0;
@@ -52,8 +48,17 @@ class TrexBrain {
 		this.scoreGraph = new cnnvis.Graph();
 		this.calculator = this.calcReward.bind(this);
 		this.latest_jumped_obs = 0;
-		this.score_window = new cnnutil.Window(1000, 10);
+		this.score_window = new cnnutil.Window(1000, 1);
 		this._age = 0;
+		this.episode = 0;
+		this.crash = 0;
+
+		const vis = this.visualize();
+
+		localStorage.setItem(
+			'trex-log.dat',
+			Object.keys(vis).join(',') + '\n'
+		);
 	}
 
 	get num_actions() {
@@ -93,8 +98,10 @@ class TrexBrain {
 	backward(data, instanceId) {
 		if(data.jumpedObstacles <= this.latest_jumped_obs && !data.crashed) return;
 
+		this.episode++;
 		if(data.crashed) {
 			this.score_window.add(data.score);
+			this.crash++;
 		}
 
 		this.brain.backward(data, instanceId, this.calculator);
@@ -108,20 +115,20 @@ class TrexBrain {
 
 		this.visElem.innerText = visKeys.map((k) => `${k}: ${vis[k]}`).join('\n');
 
+		if(this._age + 100 <= this.brain.age) {
+			this._age = Math.floor(this.brain.age / 100) * 100;
 
-		if(this.brain.age % 100 === 0) {
 			this.scoreGraph.add(this.brain.age, vis.score);
 			this.scoreGraph.drawSelf(this.visCanv);
 
 			localStorage.setItem('trex-log.dat',
 				localStorage.getItem('trex-log.dat') +
-				`${Date.now()},${this.brain.age},${vis.reward},${vis.loss},${this.highScore},${vis.score}`
+				visKeys.map((k) => vis[k]).join(',') + '\n'
 			);
 		}
 	}
 
 	forward(inputArray, instanceId) {
-		this._age++;
 		this.brain.experienceReplay();
 		return this.actions[this.brain.forward(inputArray, instanceId)];
 	}
@@ -132,8 +139,12 @@ class TrexBrain {
 
 	visualize() {
 		const vis = this.brain.visualize();
+		vis.time = Date.now();
 		vis.jumpedObs = this.latest_jumped_obs;
 		vis.score = this.score_window.get_average();
+		vis.episode = this.episode;
+		vis.crash = this.crash;
+		vis.highScore = this.highScore;
 		return vis;
 	}
 

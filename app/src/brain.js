@@ -276,7 +276,6 @@ class Brain{
 
 		}
 
-		console.log("Clearing minibatch")
 		this.time_last = 0;
 	}
 
